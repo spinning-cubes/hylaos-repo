@@ -1,0 +1,75 @@
+{
+  "name": "hylaos-repo",
+  "type": "directory",
+  "children": [
+    {
+      "name": "404.html",
+      "type": "file",
+      "size": 465
+    },
+    {
+      "name": "CNAME",
+      "type": "file",
+      "size": 31
+    },
+    {
+      "name": "LICENSE",
+      "type": "file",
+      "size": 34523
+    },
+    {
+      "name": "app",
+      "type": "directory",
+      "children": [
+        {
+          "name": "DDLC.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.conf",
+              "type": "file",
+              "size": 64
+            },
+            {
+              "name": "icon",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.png",
+                  "type": "file",
+                  "size": 137820
+                }
+              ]
+            },
+            {
+              "name": "main.js",
+              "type": "file",
+              "size": 177
+            },
+            {
+              "name": "screen",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 123362006
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "genmani.js",
+      "type": "file",
+      "size": 843
+    },
+    {
+      "name": "index.html",
+      "type": "file",
+      "size": 335
+    }
+  ]
+}
