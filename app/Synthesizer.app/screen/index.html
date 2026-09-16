@@ -1,0 +1,482 @@
+<windowconf>
+    <size width=700 height=400/>
+    <title>Synthesizer</title>
+    <nopadding/>
+</windowconf>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; cursor: url('/cursor/left_ptr.cur'), default; }
+    html, body { height: 100%; overflow: hidden !important; background: #0f1117; font-family: "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; }
+
+    #bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 40px;
+        padding: 0 12px;
+        background: #181b24;
+        border-bottom: 1px solid #262a36;
+        color: #cfd3dc;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    #bar label { opacity: .7; font-size: 10px; }
+
+    #wave, #midi-container {
+        background: var(--theme-bg-alt);
+        color: #fff;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        padding: 3px 8px;
+        font-size: 12px;
+        outline: none;
+    }
+
+    #wave option, #midi-select option {
+        background: var(--theme-bg-alt);
+        color: #fff;
+    }
+
+    #vol { width: 120px; accent-color: var(--matter-helper-theme); }
+
+    .vol-group {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .spacer { flex: 1; }
+
+    #midi-container {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    #midi-select {
+        background: transparent;
+        color: #fff;
+        border: none;
+        font-size: 12px;
+        outline: none;
+        max-width: 150px;
+    }
+
+    canvas { flex: 1; min-width: 0; min-height: 0; display: block; cursor: url('/cursor/hand2.cur'), pointer !important; }
+</style>
+
+<div id="bar">
+    <select id="wave">
+        <option value="sine">Sine</option>
+        <option value="triangle">Triangle</option>
+        <option value="square">Square</option>
+        <option value="sawtooth" selected>Sawtooth</option>
+    </select>
+    <div class="vol-group">
+        <label for="vol">Volume</label>
+        <input id="vol" type="range" min="0" max="100" value="100">
+    </div>
+    <div class="spacer"></div>
+    <div id="midi-container" title="MIDI input">
+        <span id="midi-label">No MIDI</span>
+        <select id="midi-select"></select>
+    </div>
+</div>
+
+<canvas id="piano"></canvas>
+
+<script>
+(function () {
+    const canvas = document.getElementById('piano');
+    const ctx = canvas.getContext('2d');
+    const waveSelect = document.getElementById('wave');
+    const volInput = document.getElementById('vol');
+    const midiLabel = document.getElementById('midi-label');
+    const midiSelect = document.getElementById('midi-select');
+
+    const FIRST = 60;
+    const LAST = 84;
+    const BLACK_OFFSETS = [1, 3, 6, 8, 10];
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    const notes = [];
+    const blackNotes = [];
+    let whiteSeen = -1;
+    for (let n = FIRST; n <= LAST; n++) {
+        const isBlack = BLACK_OFFSETS.indexOf(n % 12) !== -1;
+        if (isBlack) {
+            blackNotes.push({ midi: n, white: whiteSeen });
+        } else {
+            whiteSeen++;
+            notes.push({ midi: n, white: whiteSeen, key: null });
+        }
+    }
+    const whiteCount = notes.length;
+
+    const KEYMAP = {
+        z: 60, s: 61, x: 62, d: 63, c: 64,
+        v: 65, g: 66, b: 67, h: 68, n: 69, j: 70, m: 71,
+        q: 72, 2: 73, w: 74, 3: 75, e: 76,
+        r: 77, 5: 78, t: 79, 6: 80, y: 81, 7: 82, u: 83, i: 84
+    };
+    notes.forEach(function (n) {
+        const found = Object.keys(KEYMAP).find(function (k) { return KEYMAP[k] === n.midi; });
+        n.key = found ? found.toUpperCase() : '';
+    });
+    blackNotes.forEach(function (b) {
+        const found = Object.keys(KEYMAP).find(function (k) { return KEYMAP[k] === b.midi; });
+        b.key = found ? found.toUpperCase() : '';
+    });
+
+    function midiToFreq(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+
+    function midiVelocity(v) {
+        return 0.35 + 0.65 * Math.pow(v, 0.55);
+    }
+
+    let audioCtx = null;
+    let masterGain = null;
+    const activeVoices = new Map();
+    let masterVolume = 0.6;
+
+    function ensureCtx() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = masterVolume;
+            masterGain.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+
+    function noteOn(midi, velocity) {
+        var v = velocity === undefined ? 1 : velocity;
+        if (activeVoices.has(midi)) noteOff(midi);
+        const ac = ensureCtx();
+        const t0 = ac.currentTime;
+        const gain = ac.createGain();
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.35 * v, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.18 * v, t0 + 0.35);
+        gain.connect(masterGain);
+
+        const wav = waveSelect.value;
+        const oscs = [];
+        const configs = wav === 'sawtooth' ? [0, 7, -9] : [0, 4, -5];
+        configs.forEach(function (det) {
+            const osc = ac.createOscillator();
+            osc.type = wav;
+            osc.frequency.setValueAtTime(midiToFreq(midi), t0);
+            osc.detune.setValueAtTime(det * 2, t0);
+            osc.connect(gain);
+            osc.start(t0);
+            oscs.push(osc);
+        });
+
+        activeVoices.set(midi, { gain: gain, oscs: oscs });
+    }
+
+    function noteOff(midi) {
+        const voice = activeVoices.get(midi);
+        if (!voice) return;
+        const ac = ensureCtx();
+        const t = ac.currentTime;
+        voice.gain.gain.cancelScheduledValues(t);
+        voice.gain.gain.setValueAtTime(voice.gain.gain.value, t);
+        voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        voice.oscs.forEach(function (o) { o.stop(t + 0.3); });
+        activeVoices.delete(midi);
+    }
+
+    function stopAll() {
+        Array.from(activeVoices.keys()).forEach(noteOff);
+    }
+
+    volInput.addEventListener('input', function () {
+        masterVolume = volInput.value / 100;
+        if (masterGain) masterGain.gain.value = masterVolume;
+    });
+
+    let pressed = new Set();
+
+    function drawKey(x, y, w, h, isBlack, midi) {
+        const active = pressed.has(midi);
+        if (isBlack) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,.5)';
+            ctx.shadowBlur = 8;
+        }
+        const grad = ctx.createLinearGradient(0, y, 0, y + h);
+        if (active && !isBlack) {
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(1, '#454a52');
+        } else if (isBlack) {
+            grad.addColorStop(0, '#20242e');
+            grad.addColorStop(1, '#0b0d12');
+        } else {
+            grad.addColorStop(0, '#f5f6f8');
+            grad.addColorStop(1, '#d5d8df');
+        }
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.fill();
+        ctx.strokeStyle = isBlack ? '#000' : '#9aa0ac';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        if (isBlack) ctx.restore();
+    }
+
+    function draw() {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        const PRESS_DEPTH = 6;
+        const keyH = h;
+        const keyW = w / whiteCount;
+        const blackH = keyH * 0.6;
+        const blackW = keyW * 0.68;
+
+        ctx.textAlign = 'center';
+        ctx.font = '11px system-ui, sans-serif';
+
+        notes.forEach(function (n) {
+            const x = n.white * keyW;
+            const isActive = pressed.has(n.midi);
+            const ph = isActive ? keyH - PRESS_DEPTH : keyH;
+            drawKey(x, 0, keyW, ph, false, n.midi);
+            ctx.fillStyle = 'rgba(0,0,0,.45)';
+            ctx.fillText(n.key, x + keyW / 2, ph - 12);
+        });
+
+        blackNotes.forEach(function (b) {
+            const x = (b.white + 1) * keyW - blackW / 2;
+            const isActive = pressed.has(b.midi);
+            const ph = isActive ? blackH - PRESS_DEPTH : blackH;
+            drawKey(x, 0, blackW, ph, true, b.midi);
+            ctx.fillStyle = 'rgba(255,255,255,.55)';
+            ctx.fillText(b.key, x + blackW / 2, ph - 12);
+        });
+
+        requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', draw);
+    requestAnimationFrame(draw);
+
+    function keyAt(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const keyW = rect.width / whiteCount;
+        const keyH = rect.height;
+        const blackH = keyH * 0.6;
+        const blackW = keyW * 0.68;
+
+        for (let i = blackNotes.length - 1; i >= 0; i--) {
+            const b = blackNotes[i];
+            const bx = (b.white + 1) * keyW - blackW / 2;
+            if (x >= bx && x <= bx + blackW && y <= blackH) return b.midi;
+        }
+        const idx = Math.floor(x / keyW);
+        if (idx >= 0 && idx < whiteCount && y <= keyH) return notes[idx].midi;
+        return null;
+    }
+
+    let pointerKey = null;
+    canvas.addEventListener('pointerdown', function (e) {
+        const midi = keyAt(e.clientX, e.clientY);
+        if (midi == null) return;
+        canvas.setPointerCapture(e.pointerId);
+        pointerKey = midi;
+        pressed.add(midi);
+        noteOn(midi);
+        e.preventDefault();
+    });
+
+    canvas.addEventListener('pointermove', function (e) {
+        if (pointerKey == null || (e.buttons & 1) === 0) return;
+        const midi = keyAt(e.clientX, e.clientY);
+        if (midi === pointerKey) return;
+        noteOff(pointerKey);
+        pressed.delete(pointerKey);
+        pointerKey = midi;
+        if (midi != null) {
+            pressed.add(midi);
+            noteOn(midi);
+        }
+    });
+
+    canvas.addEventListener('pointerup', function (e) {
+        if (pointerKey == null) return;
+        noteOff(pointerKey);
+        pressed.delete(pointerKey);
+        pointerKey = null;
+    });
+
+    canvas.addEventListener('pointerleave', function (e) {
+        if (pointerKey == null || (e.buttons & 1) === 0) return;
+        noteOff(pointerKey);
+        pressed.delete(pointerKey);
+        pointerKey = null;
+    });
+
+    const heldKeys = new Map();
+    window.addEventListener('keydown', function (e) {
+        if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+        const midi = KEYMAP[e.key.toLowerCase()];
+        if (!midi) return;
+        e.preventDefault();
+        if (heldKeys.has(midi)) return;
+        heldKeys.set(midi, true);
+        pressed.add(midi);
+        noteOn(midi);
+    });
+
+    window.addEventListener('keyup', function (e) {
+        const midi = KEYMAP[e.key.toLowerCase()];
+        if (!midi) return;
+        if (!heldKeys.has(midi)) return;
+        heldKeys.delete(midi);
+        pressed.delete(midi);
+        noteOff(midi);
+    });
+
+    if (window.parent && window.parent === window) {
+        window.addEventListener('blur', function () {
+            heldKeys.clear();
+            pressed.clear();
+            stopAll();
+        });
+    }
+
+    let midiAccess = null;
+    const midiOutputs = new Map();
+
+    function midiInputs() {
+        return midiAccess ? Array.from(midiAccess.inputs ? midiAccess.inputs.values() : []) : [];
+    }
+
+    function populateMidiSelect(cur) {
+        const inputs = midiInputs();
+        midiSelect.innerHTML = '';
+        if (inputs.length === 0) {
+            midiLabel.textContent = 'No MIDI';
+            midiLabel.style.display = '';
+            midiSelect.style.display = 'none';
+            return;
+        }
+        midiLabel.textContent = '';
+        midiLabel.style.display = 'none';
+        midiSelect.style.display = '';
+        inputs.forEach(function (input) {
+            const opt = document.createElement('option');
+            opt.value = input.id;
+            opt.textContent = input.name || input.id;
+            if (cur && cur.id === input.id) opt.selected = true;
+            midiSelect.appendChild(opt);
+        });
+    }
+
+    function attachMidi(input) {
+        if (midiOutputs.has(input.id)) return;
+        input.onmidimessage = function (e) {
+            const data = e.data;
+            if (!data || data.length < 3) return;
+            const cmd = data[0] & 0xf0;
+            const note = data[1];
+            const velocity = data[2];
+            if (cmd === 0x90) {
+                if (velocity === 0) {
+                    noteOff(note);
+                    pressed.delete(note);
+                } else {
+                    pressed.add(note);
+                    noteOn(note, midiVelocity(velocity / 127));
+                }
+            } else if (cmd === 0x80) {
+                noteOff(note);
+                pressed.delete(note);
+            }
+        };
+        midiOutputs.set(input.id, input);
+        populateMidiSelect(input);
+    }
+
+    function detachMidi(input) {
+        input.onmidimessage = null;
+        midiOutputs.delete(input.id);
+        populateMidiSelect(null);
+    }
+
+    if (navigator.requestMIDIAccess) {
+        navigator.requestMIDIAccess({ sysex: false }).then(function (access) {
+            midiAccess = access;
+            access.onstatechange = function (e) {
+                const input = e.port;
+                if (!input || input.type !== 'input') return;
+                if (e.port.state === 'connected') attachMidi(input);
+                else detachMidi(input);
+            };
+            access.inputs.forEach(attachMidi);
+        }).catch(function () {
+            midiLabel.style.display = '';
+            midiLabel.textContent = 'MIDI unavailable';
+        });
+    } else {
+        midiLabel.style.display = '';
+        midiLabel.textContent = 'No MIDI support';
+    }
+
+    midiSelect.addEventListener('change', function () {
+        midiOutputs.forEach(function (input) {
+            input.onmidimessage = null;
+        });
+        midiOutputs.clear();
+        const id = midiSelect.value;
+        const input = midiInputs().find(function (i) { return i.id === id; });
+        if (input) attachMidi(input);
+    });
+
+    function roundRectPolyfill() {
+        if (CanvasRenderingContext2D.prototype.roundRect) return;
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            const rr = Math.min(r, h / 2, w / 2);
+            this.moveTo(x + rr, y);
+            this.lineTo(x + w - rr, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + rr);
+            this.lineTo(x + w, y + h - rr);
+            this.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+            this.lineTo(x + rr, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - rr);
+            this.lineTo(x, y + rr);
+            this.quadraticCurveTo(x, y, x + rr, y);
+            return this;
+        };
+    }
+    roundRectPolyfill();
+
+    function onHold(e) {
+        if (document.hidden) {
+            stopAll();
+            pressed.clear();
+            heldKeys.clear();
+        }
+    }
+    document.addEventListener('visibilitychange', onHold);
+})();
+</script>

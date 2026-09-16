@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <windowconf>
+        <title>Eggnet</title>
+        <size width=800 height=480/>
+    </windowconf>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: sans-serif;
+            color: #fff;
+        }
+        .viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+        .main-panel {
+            flex: 1 1 calc(67% - 5px);
+            width: auto;
+            min-width: 0;
+            height: 100%;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .chat-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .msg {
+            padding: 8px 12px;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px !important;
+            background: var(--theme-secondary-bg, #111);
+            word-break: break-word;
+            align-self: flex-start;
+        }
+        .msg.me {
+            align-self: flex-end;
+            border-bottom-left-radius: 20px !important;
+            border-bottom-right-radius: 4px !important;
+            background: var(--theme-bg-accent, #111);
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .input-merged {
+            gap: 0;
+        }
+        .input-merged input {
+            border-radius: 999px 0 0 999px !important;
+        }
+        .input-merged button {
+            border-radius: 0 999px 999px 0 !important;
+            padding: 10px 14px;
+        }
+        .input-merged button .material-symbols-outlined {
+            font-size: 20px;
+            line-height: 1;
+            display: block;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            padding-left: 18px !important;
+            border-radius: 999px;
+            border: none;
+            outline: none;
+            background: var(--theme-dark-bg, #111);
+            color: #fff;
+        }
+        button {
+            padding: 10px 15px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            background: var(--theme-dark-bg, #111);
+            color: #fff;
+        }
+        .sidebar {
+            flex: 0 1 auto;
+            width: auto;
+            min-width: 0;
+            max-width: 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            text-align: right;
+            gap: 10px;
+            border-radius: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .code-box {
+            font-size: 2em;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        #peer-id {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: normal;
+            padding: 14px 16px;
+            padding-left: 16px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport">
+        <div class="main-panel">
+            <div id="connect-screen" class="input-row input-merged" style="width: 100%; max-width: 480px;">
+                <input id="peer-id" placeholder="Peer Code">
+                <button id="connect-btn" aria-label="Connect"><span class="material-symbols-outlined">connect_without_contact</span></button>
+            </div>
+            <div id="chat-screen" class="chat-view" style="display: none;">
+                <div id="messages" class="messages"></div>
+                <div class="input-row input-merged">
+                    <input id="msg-input" placeholder="Type message...">
+                    <button id="send-btn" aria-label="Send"><span class="material-symbols-outlined">send</span></button>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div>
+                <small>Your Code</small>
+                <div id="my-code" class="code-box">......</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        class PeerChat {
+            constructor() {
+                this.peer = null;
+                this.conn = null;
+                this.getElements();
+                this.bindEvents();
+                this.init();
+            }
+
+            getElements() {
+                this.myCodeEl = document.getElementById('my-code');
+                this.peerIdInput = document.getElementById('peer-id');
+                this.connectBtn = document.getElementById('connect-btn');
+                this.messagesEl = document.getElementById('messages');
+                this.msgInput = document.getElementById('msg-input');
+                this.sendBtn = document.getElementById('send-btn');
+                this.connectScreen = document.getElementById('connect-screen');
+                this.chatScreen = document.getElementById('chat-screen');
+            }
+
+            bindEvents() {
+                this.connectBtn.onclick = () => this.connect();
+                this.sendBtn.onclick = () => this.send();
+                this.msgInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') this.send();
+                });
+            }
+
+async init() {
+                const codePath = '/home/user/.eggcode';
+                let id = null;
+                try {
+                    if (await hyla.fs.localExists(codePath)) {
+                        const saved = (await hyla.fs.getAsTextLocal(codePath)).trim();
+                        if (saved) id = saved;
+                    }
+                } catch (err) { /* fall through */ }
+                if (!id) {
+                    id = Math.floor(100000 + Math.random() * 900000).toString();
+                    try {
+                        await hyla.fs.writeText(codePath, id);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+                this.myCodeEl.textContent = id;
+
+                this.peer = new Peer(id);
+
+                this.peer.on('open', (id) => {
+                    this.myCodeEl.textContent = id;
+                    const win = window.frameElement ? window.frameElement.closest('.window') : null;
+                    if (win && window.hyla && hyla.wm) hyla.wm.changeWindowTitle(win, 'Eggnet — ' + id);
+                });
+
+                this.peer.on('connection', (c) => {
+                    this.conn = c;
+                    this.setupConn();
+                });
+            }
+
+            connect() {
+                const destId = this.peerIdInput.value.trim();
+                if (!destId) return;
+                this.conn = this.peer.connect(destId);
+                this.setupConn();
+            }
+
+            setupConn() {
+                this.connectScreen.style.display = 'none';
+                this.chatScreen.style.display = 'flex';
+
+                this.conn.on('data', (data) => {
+                    this.addMessage(data, false);
+                    hyla.app.notify("Eggnet", data);
+                });
+                this.conn.on('open', () => {
+                    hyla.app.notify("Eggnet", "Connected to peer");
+                });
+                this.conn.on('close', () => {
+                    hyla.app.notify("Eggnet", "Disconnected from peer");
+                    this.connectScreen.style.display = 'flex';
+                    this.chatScreen.style.display = 'none';
+                });
+            }
+
+            send() {
+                const txt = this.msgInput.value.trim();
+                if (!txt || !this.conn) return;
+                this.conn.send(txt);
+                this.addMessage(txt, true);
+                this.msgInput.value = '';
+            }
+
+            addMessage(txt, isMe) {
+                const div = document.createElement('div');
+                div.className = 'msg' + (isMe ? ' me' : '');
+                div.textContent = txt;
+                this.messagesEl.appendChild(div);
+                this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+            }
+        }
+
+        new PeerChat();
+    </script>
+</body>
+</html>

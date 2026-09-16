@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <windowconf>
+        <size width=820 height=520/>
+        <title>Debugger</title>
+        <nopadding/>
+    </windowconf>
+    <link rel="stylesheet" href="/node_modules/@xterm/xterm/css/xterm.css" />
+    <style>
+        html, body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+        }
+        #dbgBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 34px;
+            background: #101114;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px;
+            border-bottom: 1px solid #2a2b30;
+            z-index: 5;
+            font-family: system-ui, sans-serif;
+        }
+        #dbgBar .dbg-title {
+            color: #9aa0aa;
+            font-size: 12px;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #dbgBar button {
+            background: #2a2b30;
+            color: #e6e6e6;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        #dbgBar button:hover {
+            background: #3a3b40;
+        }
+        #dbg {
+            position: absolute;
+            top: 34px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="dbgBar">
+        <span class="dbg-title" id="dbgTitle"></span>
+        <button id="dbgClear">Clear</button>
+    </div>
+    <div id="dbg"></div>
+    <script src="/node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script>
+        (function () {
+            if (typeof window.hyla !== "object") {
+                document.body.style.cssText = "color:#fff;font-family:monospace;margin:16px;";
+                document.body.textContent = "Debugger unavailable: hyla runtime not bound.";
+                return;
+            }
+
+            const term = new Terminal({
+                cursorBlink: false,
+                cursorStyle: "block",
+                disableStdin: true,
+                fontSize: 13,
+                fontFamily: '"SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+                theme: {
+                    background: "#000000",
+                    foreground: "#ffffff",
+                    selectionBackground: "rgba(255, 255, 255, 0.3)"
+                },
+                scrollback: 5000
+            });
+
+            term.open(document.getElementById("dbg"));
+
+            const LEVEL_COLORS = {
+                log: "\x1b[0m",
+                info: "\x1b[38;2;120;180;255m",
+                warn: "\x1b[38;2;255;200;80m",
+                error: "\x1b[38;2;255;90;90m",
+                debug: "\x1b[38;2;150;210;150m"
+            };
+            const RESET = "\x1b[0m";
+            const META = "\x1b[38;2;130;130;140m";
+
+            const logs = window.parent.__HYLA_LOGS || [];
+            let idx = 0;
+
+            function fmtTime(t) {
+                const d = new Date(t);
+                const p = (n) => String(n).padStart(2, "0");
+                return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) + "." + String(d.getMilliseconds()).padStart(3, "0");
+            }
+
+            function render(entry) {
+                const out = `${META}[${entry.level.charAt(0).toUpperCase()}${entry.level.slice(1)}: ${fmtTime(entry.time)} (${entry.source || "?"})]${RESET} ${entry.text}`;
+                const formatted = out.replace(/&/g, "&amp;")
+                                      .replace(/</g, "&lt;")
+                                      .replace(/\n/g, "<br>");
+                term.writeln(formatted);
+            }
+
+            function drain() {
+                while (idx < logs.length) {
+                    render(logs[idx]);
+                    idx++;
+                }
+            }
+            drain();
+
+            const container = document.getElementById("dbg");
+            function fit() {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                if (!width || !height) return;
+                let cw = 9;
+                let rowH = 17;
+                try {
+                    const meas = document.createElement("canvas");
+                    const ctx = meas.getContext("2d");
+                    const font = "13px \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace";
+                    if (ctx) {
+                        ctx.font = font;
+                        cw = Math.max(5, ctx.measureText("M").width);
+                    }
+                    const probe = document.createElement("span");
+                    probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font:" + font + ";";
+                    probe.textContent = "M";
+                    document.body.appendChild(probe);
+                    const lh = probe.offsetHeight;
+                    document.body.removeChild(probe);
+                    if (lh > 8) rowH = lh;
+                } catch (err) { /* keep estimates */ }
+                const cols = Math.floor(width / cw);
+                const rows = Math.floor(height / rowH);
+                if (cols > 0 && rows > 0) term.resize(cols, rows);
+            }
+            window.addEventListener("resize", () => setTimeout(fit, 0));
+            setTimeout(fit, 50);
+
+            document.getElementById("dbgClear").onclick = () => {
+                const target = window.parent.__HYLA_LOGS || [];
+                target.splice(0, target.length);
+                idx = 0;
+                term.clear();
+            };
+
+            setInterval(() => {
+                if (idx < logs.length) drain();
+                const title = document.getElementById("dbgTitle");
+                if (title) title.textContent = (window.parent.__HYLA_LOGS || []).length + " entries";
+            }, 250);
+        })();
+    </script>
+</body>
+</html>
