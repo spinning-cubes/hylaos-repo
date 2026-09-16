@@ -181,7 +181,7 @@
                 });
             }
 
-async init() {
+            async init() {
                 const codePath = '/home/user/.eggcode';
                 let id = null;
                 try {
@@ -199,8 +199,18 @@ async init() {
                     }
                 }
                 this.myCodeEl.textContent = id;
+                
+                const peerOptions = {
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                };
 
-                this.peer = new Peer(id);
+                // Pass options as the second argument (or first if id is omitted, but keep your custom id)
+                this.peer = new Peer(id, peerOptions);
 
                 this.peer.on('open', (id) => {
                     this.myCodeEl.textContent = id;
