@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <windowconf>
+        <title>Camera</title>
+        <size width=800 height=480/>
+    </windowconf>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        .viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+        #webcam {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #outputCanvas {
+            flex: 0 0 calc(67% - 5px);
+            width: calc(67% - 5px);
+            height: 100%;
+            background: #000;
+            border-radius: 20px;
+            object-fit: cover;
+        }
+        .sidebar {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--theme-dark-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .camera-icon {
+            width: 50%;
+            height: auto;
+            opacity: 0.50;
+            transition: opacity 0.15s ease;
+        }
+        .camera-icon:hover {
+            opacity: 0.66;
+        }
+        .camera-icon:active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="outputCanvas"></canvas>
+        <div class="sidebar">
+            <img class="camera-icon" src="/icon/camera.svg" alt="Camera">
+        </div>
+    </div>
+    <script>
+        (async function () {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('outputCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function render() {
+                const w = canvas.clientWidth;
+                const h = canvas.clientHeight;
+                if (w > 0 && h > 0 && video.videoWidth > 0) {
+                    if (canvas.width !== w || canvas.height !== h) {
+                        canvas.width = w;
+                        canvas.height = h;
+                    }
+                    ctx.drawImage(video, 0, 0, w, h);
+                }
+                requestAnimationFrame(render);
+            }
+
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera not available in this context');
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = stream;
+                await video.play();
+                render();
+            } catch (err) {
+                console.error(err);
+                canvas.style.background = 'var(--theme-dark-bg)';
+            }
+
+            const icon = document.querySelector('.camera-icon');
+            if (icon) {
+                icon.addEventListener('click', async () => {
+                    if (!video.videoWidth) {
+                        if (window.hyla && hyla.notify) hyla.notify('Camera', 'No camera feed available yet');
+                        return;
+                    }
+                    try {
+                        const snapshot = document.createElement('canvas');
+                        snapshot.width = video.videoWidth;
+                        snapshot.height = video.videoHeight;
+                        snapshot.getContext('2d').drawImage(video, 0, 0);
+                        const blob = await new Promise((r) => snapshot.toBlob(r, 'image/png'));
+                        if (!blob) throw new Error('Failed to encode photo');
+                        const bytes = new Uint8Array(await blob.arrayBuffer());
+                        const dir = '/home/user/Camera Roll';
+                        if (window.hyla && hyla.fs) {
+                            await hyla.fs.mkdir(dir);
+                            const path = dir + '/IMG_' + Date.now() + '.png';
+                            await hyla.fs.write(bytes, path);
+                            if (hyla.notify) hyla.notify('Camera', 'Saved to Camera Roll');
+                        } else {
+                            console.log('Captured photo', bytes.length, 'bytes');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        if (window.hyla && hyla.notify) hyla.notify('Camera', 'Failed to capture photo');
+                    }
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
