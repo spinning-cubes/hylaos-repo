@@ -75,7 +75,7 @@
                 {
                   "name": "index.html",
                   "type": "file",
-                  "size": 134
+                  "size": 123362006
                 }
               ]
             },
@@ -204,6 +204,130 @@
           ]
         },
         {
+          "name": "SlimeRancher.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.conf",
+              "type": "file",
+              "size": 60
+            },
+            {
+              "name": "icon",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.png",
+                  "type": "file",
+                  "size": 35767
+                }
+              ]
+            },
+            {
+              "name": "main.js",
+              "type": "file",
+              "size": 177
+            },
+            {
+              "name": "screen",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 85620225
+                }
+              ]
+            },
+            {
+              "name": "screenshots",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "1.jpg",
+                  "type": "file",
+                  "size": 394843
+                },
+                {
+                  "name": "10.jpg",
+                  "type": "file",
+                  "size": 328403
+                },
+                {
+                  "name": "11.jpg",
+                  "type": "file",
+                  "size": 331512
+                },
+                {
+                  "name": "12.jpg",
+                  "type": "file",
+                  "size": 657180
+                },
+                {
+                  "name": "13.jpg",
+                  "type": "file",
+                  "size": 681824
+                },
+                {
+                  "name": "14.jpg",
+                  "type": "file",
+                  "size": 395711
+                },
+                {
+                  "name": "15.jpg",
+                  "type": "file",
+                  "size": 341681
+                },
+                {
+                  "name": "2.jpg",
+                  "type": "file",
+                  "size": 583513
+                },
+                {
+                  "name": "3.jpg",
+                  "type": "file",
+                  "size": 418738
+                },
+                {
+                  "name": "4.jpg",
+                  "type": "file",
+                  "size": 371726
+                },
+                {
+                  "name": "5.jpg",
+                  "type": "file",
+                  "size": 391188
+                },
+                {
+                  "name": "6.jpg",
+                  "type": "file",
+                  "size": 373038
+                },
+                {
+                  "name": "7.jpg",
+                  "type": "file",
+                  "size": 506653
+                },
+                {
+                  "name": "8.jpg",
+                  "type": "file",
+                  "size": 387778
+                },
+                {
+                  "name": "9.jpg",
+                  "type": "file",
+                  "size": 318309
+                }
+              ]
+            },
+            {
+              "name": "storedesc.conf",
+              "type": "file",
+              "size": 578
+            }
+          ]
+        },
+        {
           "name": "Synthesizer.app",
           "type": "directory",
           "children": [
@@ -251,7 +375,7 @@
     {
       "name": "genmani.js",
       "type": "file",
-      "size": 843
+      "size": 1397
     },
     {
       "name": "index.html",
