@@ -8,8 +8,12 @@
           "value": "frame-ancestors 'self' *;"
         },
         {
-          "key": "X-Frame-Options",
-          "value": ""
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "require-corp"
         }
       ]
     }
