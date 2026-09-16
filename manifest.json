@@ -44,6 +44,49 @@
       "type": "directory",
       "children": [
         {
+          "name": "Camera.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.conf",
+              "type": "file",
+              "size": 37
+            },
+            {
+              "name": "icon",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.png",
+                  "type": "file",
+                  "size": 5692
+                }
+              ]
+            },
+            {
+              "name": "main.js",
+              "type": "file",
+              "size": 175
+            },
+            {
+              "name": "screen",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 4843
+                }
+              ]
+            },
+            {
+              "name": "storedesc.conf",
+              "type": "file",
+              "size": 207
+            }
+          ]
+        },
+        {
           "name": "DDLC.app",
           "type": "directory",
           "children": [
@@ -200,6 +243,49 @@
               "name": "storedesc.conf",
               "type": "file",
               "size": 245
+            }
+          ]
+        },
+        {
+          "name": "MozillaFirefox.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.conf",
+              "type": "file",
+              "size": 41
+            },
+            {
+              "name": "icon",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.png",
+                  "type": "file",
+                  "size": 26752
+                }
+              ]
+            },
+            {
+              "name": "main.js",
+              "type": "file",
+              "size": 175
+            },
+            {
+              "name": "screen",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 539
+                }
+              ]
+            },
+            {
+              "name": "storedesc.conf",
+              "type": "file",
+              "size": 147
             }
           ]
         },
@@ -369,6 +455,53 @@
               "size": 202
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "firefox",
+      "type": "directory",
+      "children": [
+        {
+          "name": "assets",
+          "type": "directory",
+          "children": [
+            {
+              "name": "index-CJZf4zMx.css",
+              "type": "file",
+              "size": 7736
+            },
+            {
+              "name": "index-D39giZCc.js",
+              "type": "file",
+              "size": 4110373
+            }
+          ]
+        },
+        {
+          "name": "chrome-assets.json",
+          "type": "file",
+          "size": 30
+        },
+        {
+          "name": "chrome-assets.tar.zst",
+          "type": "file",
+          "size": 18270230
+        },
+        {
+          "name": "gecko.wasm.zst",
+          "type": "file",
+          "size": 34096446
+        },
+        {
+          "name": "index.html",
+          "type": "file",
+          "size": 10160
+        },
+        {
+          "name": "logo.webp",
+          "type": "file",
+          "size": 26752
         }
       ]
     },
