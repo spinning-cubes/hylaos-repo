@@ -3,6 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/coi-sw.js").then(
+            (registration) => {
+              console.log("COI Service Worker registered successfully.");
+              
+              // The page MUST reload once after registration so the worker takes complete control of the network
+              if (navigator.serviceWorker.controller === null) {
+                window.location.reload();
+              }
+            },
+            (err) => {
+              console.error("COI Service Worker registration failed: ", err);
+            }
+          );
+        });
+      }
+    </script>
     <title>Firefox in WebAssembly</title>
     <link id="favicon" rel="icon" type="image/webp" href="logo.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
