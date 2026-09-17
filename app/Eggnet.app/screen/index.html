@@ -5,7 +5,6 @@
         <title>Eggnet</title>
         <size width=800 height=480/>
     </windowconf>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         html, body {
             margin: 0;
@@ -64,6 +63,11 @@
             border-bottom-right-radius: 4px !important;
             background: var(--theme-bg-accent, #111);
         }
+        .msg .sender {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
         .input-row {
             display: flex;
             gap: 10px;
@@ -121,7 +125,7 @@
             font-weight: bold;
             letter-spacing: 2px;
         }
-        #peer-id {
+        #room-id {
             font-size: 22px;
             font-weight: 600;
             letter-spacing: normal;
@@ -134,7 +138,7 @@
     <div class="viewport">
         <div class="main-panel">
             <div id="connect-screen" class="input-row input-merged" style="width: 100%; max-width: 480px;">
-                <input id="peer-id" placeholder="Peer Code">
+                <input id="room-id" placeholder="Room Code">
                 <button id="connect-btn" aria-label="Connect"><span class="material-symbols-outlined">connect_without_contact</span></button>
             </div>
             <div id="chat-screen" class="chat-view" style="display: none;">
@@ -153,10 +157,11 @@
         </div>
     </div>
     <script>
-        class PeerChat {
+        class EggchatClient {
             constructor() {
-                this.peer = null;
-                this.conn = null;
+                this.ws = null;
+                this.myCode = null;
+                this.currentRoom = null;
                 this.getElements();
                 this.bindEvents();
                 this.init();
@@ -164,7 +169,7 @@
 
             getElements() {
                 this.myCodeEl = document.getElementById('my-code');
-                this.peerIdInput = document.getElementById('peer-id');
+                this.roomIdInput = document.getElementById('room-id');
                 this.connectBtn = document.getElementById('connect-btn');
                 this.messagesEl = document.getElementById('messages');
                 this.msgInput = document.getElementById('msg-input');
@@ -174,7 +179,7 @@
             }
 
             bindEvents() {
-                this.connectBtn.onclick = () => this.connect();
+                this.connectBtn.onclick = () => this.connectToRoom();
                 this.sendBtn.onclick = () => this.send();
                 this.msgInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') this.send();
@@ -183,90 +188,128 @@
 
             async init() {
                 const codePath = '/home/user/.eggcode';
-                let id = null;
                 try {
-                    if (await hyla.fs.localExists(codePath)) {
+                    if (window.hyla && await hyla.fs.localExists(codePath)) {
                         const saved = (await hyla.fs.getAsTextLocal(codePath)).trim();
-                        if (saved) id = saved;
+                        if (saved) this.myCode = saved;
                     }
                 } catch (err) { /* fall through */ }
-                if (!id) {
-                    id = Math.floor(100000 + Math.random() * 900000).toString();
+
+                if (!this.myCode) {
+                    this.myCode = Math.floor(100000 + Math.random() * 900000).toString();
                     try {
-                        await hyla.fs.writeText(codePath, id);
+                        if (window.hyla) await hyla.fs.writeText(codePath, this.myCode);
                     } catch (err) {
                         console.error(err);
                     }
                 }
-                this.myCodeEl.textContent = id;
-                
-                const peerOptions = {
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:stun1.l.google.com:19302' }
-                        ]
+
+                this.myCodeEl.textContent = this.myCode;
+                const win = window.frameElement ? window.frameElement.closest('.window') : null;
+                if (win && window.hyla && hyla.wm) hyla.wm.changeWindowTitle(win, 'Eggnet — ' + this.myCode);
+
+                this.connectWebSocket();
+            }
+
+            connectWebSocket() {
+                this.ws = new WebSocket('ws://eggchat.breakmine.com');
+
+                this.ws.onopen = () => {
+                    console.log('Connected to Eggchat server');
+                };
+
+                this.ws.onmessage = (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        this.handleServerPayload(payload);
+                    } catch (err) {
+                        console.error('Failed to parse JSON message:', err);
                     }
                 };
 
-                // Pass options as the second argument (or first if id is omitted, but keep your custom id)
-                this.peer = new Peer(id, peerOptions);
+                this.ws.onclose = () => {
+                    if (window.hyla && hyla.app) hyla.app.notify("Eggnet", "Disconnected from server");
+                    this.connectScreen.style.display = 'flex';
+                    this.chatScreen.style.display = 'none';
+                    // Reconnect after 3 seconds
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                };
 
-                this.peer.on('open', (id) => {
-                    this.myCodeEl.textContent = id;
-                    const win = window.frameElement ? window.frameElement.closest('.window') : null;
-                    if (win && window.hyla && hyla.wm) hyla.wm.changeWindowTitle(win, 'Eggnet — ' + id);
-                });
-
-                this.peer.on('connection', (c) => {
-                    this.conn = c;
-                    this.setupConn();
-                });
+                this.ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
+                };
             }
 
-            connect() {
-                const destId = this.peerIdInput.value.trim();
-                if (!destId) return;
-                this.conn = this.peer.connect(destId);
-                this.setupConn();
-            }
+            connectToRoom() {
+                const targetRoom = this.roomIdInput.value.trim() || this.myCode;
+                if (!targetRoom || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-            setupConn() {
+                this.currentRoom = targetRoom;
+                
+                // Join request
+                this.ws.send(JSON.stringify({
+                    type: 'join',
+                    room: this.currentRoom
+                }));
+
+                this.messagesEl.innerHTML = '';
                 this.connectScreen.style.display = 'none';
                 this.chatScreen.style.display = 'flex';
 
-                this.conn.on('data', (data) => {
-                    this.addMessage(data, false);
-                    hyla.app.notify("Eggnet", data);
-                });
-                this.conn.on('open', () => {
-                    hyla.app.notify("Eggnet", "Connected to peer");
-                });
-                this.conn.on('close', () => {
-                    hyla.app.notify("Eggnet", "Disconnected from peer");
-                    this.connectScreen.style.display = 'flex';
-                    this.chatScreen.style.display = 'none';
-                });
+                if (window.hyla && hyla.app) hyla.app.notify("Eggnet", "Joined room: " + this.currentRoom);
+            }
+
+            handleServerPayload(payload) {
+                if (payload.type === 'history') {
+                    this.messagesEl.innerHTML = '';
+                    (payload.messages || []).forEach(msg => {
+                        this.addMessage(msg.username, msg.content);
+                    });
+                } else if (payload.type === 'message') {
+                    const msg = payload.data;
+                    this.addMessage(msg.username, msg.content);
+                    if (msg.username !== this.myCode && window.hyla && hyla.app) {
+                        hyla.app.notify("Eggnet", `${msg.username}: ${msg.content}`);
+                    }
+                } else if (payload.type === 'error') {
+                    console.error("Server Error:", payload.message);
+                }
             }
 
             send() {
                 const txt = this.msgInput.value.trim();
-                if (!txt || !this.conn) return;
-                this.conn.send(txt);
-                this.addMessage(txt, true);
+                if (!txt || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+                this.ws.send(JSON.stringify({
+                    type: 'message',
+                    username: this.myCode,
+                    content: txt
+                }));
+
                 this.msgInput.value = '';
             }
 
-            addMessage(txt, isMe) {
+            addMessage(username, txt) {
+                const isMe = username === this.myCode;
                 const div = document.createElement('div');
                 div.className = 'msg' + (isMe ? ' me' : '');
-                div.textContent = txt;
+
+                const senderDiv = document.createElement('div');
+                senderDiv.className = 'sender';
+                senderDiv.textContent = isMe ? 'You' : username;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.textContent = txt;
+
+                div.appendChild(senderDiv);
+                div.appendChild(contentDiv);
+
                 this.messagesEl.appendChild(div);
                 this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
             }
         }
 
-        new PeerChat();
+        new EggchatClient();
     </script>
 </body>
 </html>
