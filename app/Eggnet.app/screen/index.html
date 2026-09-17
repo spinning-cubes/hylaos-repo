@@ -160,18 +160,21 @@
             <div id="chat-screen" class="chat-view" style="display: none;">
                 <div id="messages" class="messages"></div>
                 <div class="input-row input-merged">
-                    <input id="msg-input" placeholder="Type message...">
+                    <input id="msg-input" maxlength="200" placeholder="Type message...">
                     <button id="send-btn" aria-label="Send"><span class="material-symbols-outlined">send</span></button>
                 </div>
             </div>
         </div>
     </div>
     <script>
+        const MAX_MESSAGE_LENGTH = 200;
+
         class EggchatClient {
             constructor() {
                 this.ws = null;
                 this.username = 'Anonymous';
                 this.currentRoom = null;
+                this.maxMessageLength = MAX_MESSAGE_LENGTH;
                 this.getElements();
                 this.bindEvents();
                 this.init();
@@ -183,6 +186,7 @@
                 this.connectBtn = document.getElementById('connect-btn');
                 this.messagesEl = document.getElementById('messages');
                 this.msgInput = document.getElementById('msg-input');
+                this.msgInput.maxLength = this.maxMessageLength;
                 this.sendBtn = document.getElementById('send-btn');
                 this.connectScreen = document.getElementById('connect-screen');
                 this.chatScreen = document.getElementById('chat-screen');
@@ -276,7 +280,7 @@
             }
 
             send() {
-                const txt = this.msgInput.value.trim();
+                const txt = this.msgInput.value.trim().slice(0, this.maxMessageLength);
                 if (!txt || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
                 this.ws.send(JSON.stringify({
