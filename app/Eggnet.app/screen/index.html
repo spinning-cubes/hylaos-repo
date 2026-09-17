@@ -73,13 +73,17 @@
             gap: 10px;
             margin-top: 10px;
         }
+        .connect-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 480px;
+        }
         .input-merged {
             gap: 0;
         }
         .input-merged input {
-            border-radius: 0;
-        }
-        .input-merged input:first-child {
             border-radius: 999px 0 0 999px !important;
         }
         .input-merged button {
@@ -110,20 +114,22 @@
             color: #fff;
         }
         #username, #room-id {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 500;
             padding: 14px 16px;
-            padding-left: 16px !important;
+            padding-left: 18px !important;
         }
     </style>
 </head>
 <body>
     <div class="viewport">
         <div class="main-panel">
-            <div id="connect-screen" class="input-row input-merged" style="width: 100%; max-width: 520px;">
+            <div id="connect-screen" class="connect-form">
                 <input id="username" placeholder="Username">
-                <input id="room-id" placeholder="Room Code">
-                <button id="connect-btn" aria-label="Connect"><span class="material-symbols-outlined">connect_without_contact</span></button>
+                <div class="input-row input-merged" style="margin-top: 0;">
+                    <input id="room-id" placeholder="Room Code">
+                    <button id="connect-btn" aria-label="Connect"><span class="material-symbols-outlined">connect_without_contact</span></button>
+                </div>
             </div>
             <div id="chat-screen" class="chat-view" style="display: none;">
                 <div id="messages" class="messages"></div>
@@ -161,6 +167,9 @@
                 this.sendBtn.onclick = () => this.send();
                 this.msgInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') this.send();
+                });
+                this.usernameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') this.connectToRoom();
                 });
                 this.roomIdInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') this.connectToRoom();
