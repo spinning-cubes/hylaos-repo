@@ -25,7 +25,7 @@
             box-sizing: border-box;
         }
         .main-panel {
-            flex: 1 1 calc(67% - 5px);
+            flex: 1;
             width: auto;
             min-width: 0;
             height: 100%;
@@ -77,6 +77,9 @@
             gap: 0;
         }
         .input-merged input {
+            border-radius: 0;
+        }
+        .input-merged input:first-child {
             border-radius: 999px 0 0 999px !important;
         }
         .input-merged button {
@@ -106,29 +109,9 @@
             background: var(--theme-dark-bg, #111);
             color: #fff;
         }
-        .sidebar {
-            flex: 0 1 auto;
-            width: auto;
-            min-width: 0;
-            max-width: 40%;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            text-align: right;
-            gap: 10px;
-            border-radius: 20px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .code-box {
-            font-size: 2em;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-        #room-id {
-            font-size: 22px;
-            font-weight: 600;
-            letter-spacing: normal;
+        #username, #room-id {
+            font-size: 16px;
+            font-weight: 500;
             padding: 14px 16px;
             padding-left: 16px !important;
         }
@@ -137,7 +120,8 @@
 <body>
     <div class="viewport">
         <div class="main-panel">
-            <div id="connect-screen" class="input-row input-merged" style="width: 100%; max-width: 480px;">
+            <div id="connect-screen" class="input-row input-merged" style="width: 100%; max-width: 520px;">
+                <input id="username" placeholder="Username">
                 <input id="room-id" placeholder="Room Code">
                 <button id="connect-btn" aria-label="Connect"><span class="material-symbols-outlined">connect_without_contact</span></button>
             </div>
@@ -149,18 +133,12 @@
                 </div>
             </div>
         </div>
-        <div class="sidebar">
-            <div>
-                <small>Your Code</small>
-                <div id="my-code" class="code-box">......</div>
-            </div>
-        </div>
     </div>
     <script>
         class EggchatClient {
             constructor() {
                 this.ws = null;
-                this.myCode = null;
+                this.username = 'Anonymous';
                 this.currentRoom = null;
                 this.getElements();
                 this.bindEvents();
@@ -168,7 +146,7 @@
             }
 
             getElements() {
-                this.myCodeEl = document.getElementById('my-code');
+                this.usernameInput = document.getElementById('username');
                 this.roomIdInput = document.getElementById('room-id');
                 this.connectBtn = document.getElementById('connect-btn');
                 this.messagesEl = document.getElementById('messages');
@@ -184,29 +162,14 @@
                 this.msgInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') this.send();
                 });
+                this.roomIdInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') this.connectToRoom();
+                });
             }
 
             async init() {
-                const codePath = '/home/user/.eggcode';
-                try {
-                    if (window.hyla && await hyla.fs.localExists(codePath)) {
-                        const saved = (await hyla.fs.getAsTextLocal(codePath)).trim();
-                        if (saved) this.myCode = saved;
-                    }
-                } catch (err) { /* fall through */ }
-
-                if (!this.myCode) {
-                    this.myCode = Math.floor(100000 + Math.random() * 900000).toString();
-                    try {
-                        if (window.hyla) await hyla.fs.writeText(codePath, this.myCode);
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-
-                this.myCodeEl.textContent = this.myCode;
                 const win = window.frameElement ? window.frameElement.closest('.window') : null;
-                if (win && window.hyla && hyla.wm) hyla.wm.changeWindowTitle(win, 'Eggnet — ' + this.myCode);
+                if (win && window.hyla && hyla.wm) hyla.wm.changeWindowTitle(win, 'Eggnet');
 
                 this.connectWebSocket();
             }
@@ -231,7 +194,6 @@
                     if (window.hyla && hyla.app) hyla.app.notify("Eggnet", "Disconnected from server");
                     this.connectScreen.style.display = 'flex';
                     this.chatScreen.style.display = 'none';
-                    // Reconnect after 3 seconds
                     setTimeout(() => this.connectWebSocket(), 3000);
                 };
 
@@ -241,12 +203,14 @@
             }
 
             connectToRoom() {
-                const targetRoom = this.roomIdInput.value.trim() || this.myCode;
-                if (!targetRoom || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+                const username = this.usernameInput.value.trim();
+                const targetRoom = this.roomIdInput.value.trim();
 
+                if (!username || !targetRoom || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+                this.username = username;
                 this.currentRoom = targetRoom;
                 
-                // Join request
                 this.ws.send(JSON.stringify({
                     type: 'join',
                     room: this.currentRoom
@@ -268,7 +232,7 @@
                 } else if (payload.type === 'message') {
                     const msg = payload.data;
                     this.addMessage(msg.username, msg.content);
-                    if (msg.username !== this.myCode && window.hyla && hyla.app) {
+                    if (msg.username !== this.username && window.hyla && hyla.app) {
                         hyla.app.notify("Eggnet", `${msg.username}: ${msg.content}`);
                     }
                 } else if (payload.type === 'error') {
@@ -282,7 +246,7 @@
 
                 this.ws.send(JSON.stringify({
                     type: 'message',
-                    username: this.myCode,
+                    username: this.username,
                     content: txt
                 }));
 
@@ -290,13 +254,13 @@
             }
 
             addMessage(username, txt) {
-                const isMe = username === this.myCode;
+                const isMe = username === this.username;
                 const div = document.createElement('div');
                 div.className = 'msg' + (isMe ? ' me' : '');
 
                 const senderDiv = document.createElement('div');
                 senderDiv.className = 'sender';
-                senderDiv.textContent = isMe ? 'You' : username;
+                senderDiv.textContent = username;
 
                 const contentDiv = document.createElement('div');
                 contentDiv.textContent = txt;
