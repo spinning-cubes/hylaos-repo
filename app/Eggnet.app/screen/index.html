@@ -35,7 +35,6 @@
             justify-content: center;
             padding: 20px;
             box-sizing: border-box;
-            position: relative;
         }
         .chat-view {
             width: 100%;
@@ -75,6 +74,7 @@
             margin-top: 10px;
         }
         .connect-form {
+            position: relative;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -83,19 +83,22 @@
         }
         .brand-header {
             position: absolute;
-            top: 24px;
-            left: 24px;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            white-space: nowrap;
             pointer-events: none;
         }
         .brand-header .material-symbols-outlined {
-            font-size: 36px;
+            font-size: 40px;
         }
         .brand-header h1 {
             margin: 0;
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 700;
             letter-spacing: -0.5px;
         }
