@@ -263,6 +263,7 @@
             }
 
             handleServerPayload(payload) {
+                if (!payload.messages || payload.messages === []) return;
                 if (payload.type === 'history') {
                     this.messagesEl.innerHTML = '';
                     (payload.messages || []).forEach(msg => {
