@@ -214,7 +214,7 @@
             }
 
             connectWebSocket() {
-                this.ws = new WebSocket('ws://eggchat.breakmine.com');
+                this.ws = new WebSocket('wss://eggchat.breakmine.com');
 
                 this.ws.onopen = () => {
                     console.log('Connected to Eggchat server');
