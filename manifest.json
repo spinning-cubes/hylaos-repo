@@ -40,9 +40,57 @@
       "size": 34523
     },
     {
+      "name": "LICENSEE-CODES",
+      "type": "file",
+      "size": 93
+    },
+    {
       "name": "app",
       "type": "directory",
       "children": [
+        {
+          "name": "Breakmine.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.conf",
+              "type": "file",
+              "size": 58
+            },
+            {
+              "name": "icon",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.png",
+                  "type": "file",
+                  "size": 35874
+                }
+              ]
+            },
+            {
+              "name": "main.js",
+              "type": "file",
+              "size": 175
+            },
+            {
+              "name": "screen",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 19639456
+                }
+              ]
+            },
+            {
+              "name": "storedesc.conf",
+              "type": "file",
+              "size": 234
+            }
+          ]
+        },
         {
           "name": "Camera.app",
           "type": "directory",
@@ -167,7 +215,7 @@
             {
               "name": "app.conf",
               "type": "file",
-              "size": 57
+              "size": 56
             },
             {
               "name": "icon",
@@ -176,7 +224,7 @@
                 {
                   "name": "index.png",
                   "type": "file",
-                  "size": 669
+                  "size": 7510
                 }
               ]
             },
@@ -210,7 +258,7 @@
             {
               "name": "app.conf",
               "type": "file",
-              "size": 38
+              "size": 37
             },
             {
               "name": "icon",
@@ -235,7 +283,7 @@
                 {
                   "name": "index.html",
                   "type": "file",
-                  "size": 8695
+                  "size": 11037
                 }
               ]
             },
@@ -278,7 +326,7 @@
                 {
                   "name": "index.html",
                   "type": "file",
-                  "size": 539
+                  "size": 574
                 }
               ]
             },
@@ -455,8 +503,46 @@
               "size": 202
             }
           ]
+        },
+        {
+          "name": "YouTube.app",
+          "type": "directory",
+          "children": [
+            {
+              "name": "app.py",
+              "type": "file",
+              "size": 5739
+            },
+            {
+              "name": "static",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "style.css",
+                  "type": "file",
+                  "size": 3402
+                }
+              ]
+            },
+            {
+              "name": "templates",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.html",
+                  "type": "file",
+                  "size": 9763
+                }
+              ]
+            }
+          ]
         }
       ]
+    },
+    {
+      "name": "coi-sw.js",
+      "type": "file",
+      "size": 1119
     },
     {
       "name": "firefox",
@@ -496,7 +582,7 @@
         {
           "name": "index.html",
           "type": "file",
-          "size": 10160
+          "size": 10861
         },
         {
           "name": "logo.webp",
@@ -504,6 +590,11 @@
           "size": 26752
         }
       ]
+    },
+    {
+      "name": "generate.py",
+      "type": "file",
+      "size": 370
     },
     {
       "name": "genmani.js",
@@ -514,6 +605,11 @@
       "name": "index.html",
       "type": "file",
       "size": 335
+    },
+    {
+      "name": "vercel.json",
+      "type": "file",
+      "size": 409
     }
   ]
 }
